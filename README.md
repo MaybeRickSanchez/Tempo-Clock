@@ -66,7 +66,6 @@ src/tempo-clock.desktop   Menu entry
 src/tempo-clock.svg       Application icon
 build-deb.sh              Builds the Debian package
 LICENSE                   MIT license
-DESCRIPTION.md            Short and long description for listings
 ```
 
 ## Keyboard shortcuts
