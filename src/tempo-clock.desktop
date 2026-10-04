@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Tempo Clock
+GenericName=Clock
+Comment=World clock, alarms, stopwatch, timer and time converter
+Exec=tempo-clock
+Icon=tempo-clock
+Terminal=false
+Categories=Utility;GTK;Clock;
+Keywords=clock;time;alarm;timer;stopwatch;timezone;
+StartupWMClass=tempo-clock

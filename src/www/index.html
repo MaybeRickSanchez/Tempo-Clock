@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tempo Clock</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+:root{
+  --accent:#2fb67c;--accent-soft:#2fb67c22;
+  --bg:#eef1ee;--side:#e3e8e4;--card:#fbfcfb;--text:#17231c;--text2:#55655c;--text3:#85938b;
+  --line:rgba(23,35,28,.1);--hover:rgba(23,35,28,.06);--field:#fff;--off:#c3cbc6;
+  --shadow:0 1px 2px rgba(23,35,28,.05),0 10px 26px -14px rgba(23,35,28,.22);
+  color-scheme:light}
+:root.dark{
+  --bg:#121715;--side:#171d1a;--card:#1c2320;--text:#ecf2ee;--text2:#a2afa8;--text3:#738079;
+  --line:rgba(255,255,255,.08);--hover:rgba(255,255,255,.07);--field:#141a17;--off:#44504a;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 30px -14px rgba(0,0,0,.65);color-scheme:dark}
+body{font-family:"Ubuntu","Noto Sans","Cantarell",system-ui,sans-serif;font-size:14px;color:var(--text);
+  background:var(--bg);display:flex;user-select:none;-webkit-user-select:none}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.num{font-variant-numeric:tabular-nums;direction:ltr}
+
+/* Sidebar */
+.side{flex:0 0 212px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 12px;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 20px;font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand b{width:28px;height:28px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 12px;border:0;border-radius:9px;background:none;
+  cursor:pointer;color:var(--text2);font-weight:500;text-align:left;width:100%;position:relative;transition:background .12s,color .12s}
+.nav:hover{background:var(--hover);color:var(--text)}
+.nav.on{background:var(--accent-soft);color:var(--text);font-weight:600}
+.nav.on svg{color:var(--accent)}
+.nav.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.nav kbd{margin-left:auto;font:11px inherit;color:var(--text3)}
+.grow{flex:1}
+
+/* Content */
+.main{flex:1;min-width:0;overflow-y:auto;padding:30px 38px 44px;
+  background:radial-gradient(800px 360px at 85% -8%,var(--accent-soft),transparent 70%)}
+.main::-webkit-scrollbar{width:10px}
+.main::-webkit-scrollbar-thumb{background:var(--off);border-radius:9px;border:3px solid transparent;background-clip:content-box}
+.wrap{max-width:860px;margin:0 auto}
+.view{display:none}.view.on{display:block}
+h1{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.sub{color:var(--text2);margin:4px 0 24px}
+.sec{display:flex;align-items:center;justify-content:space-between;margin:30px 0 12px}
+.sec h2{font-size:13px;font-weight:600;color:var(--text2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+
+/* Hero (world clock) */
+.hero{display:flex;align-items:center;gap:44px;padding:30px 38px;flex-wrap:wrap}
+.analog{width:216px;height:216px;color:var(--text);flex:0 0 auto}
+.hero-info{flex:1;min-width:250px;display:flex;flex-direction:column;gap:6px}
+.big{font-size:84px;font-weight:200;letter-spacing:-.045em;line-height:1;margin:14px 0 6px;white-space:nowrap}
+.big small,.ct small{font-size:.28em;font-weight:500;letter-spacing:0;margin-left:8px;color:var(--text3)}
+.date{font-size:16px;font-weight:500}
+.meta{color:var(--text3)}
+
+/* Fields & buttons */
+.select,.input{background:var(--field);border:1px solid var(--line);border-radius:9px;padding:9px 12px;outline:none;width:100%;
+  user-select:text;-webkit-user-select:text;transition:border-color .12s,box-shadow .12s}
+.select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:32px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2385938b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center;background-size:12px}
+.select:focus,.input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{border:0;border-radius:9px;padding:9px 18px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;white-space:nowrap;transition:filter .12s,transform .08s}
+.btn:hover{filter:brightness(1.07)}.btn:active{transform:scale(.97)}
+.btn.sec2{background:var(--hover);color:var(--text)}
+.btn.ghost{background:none;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.btn.danger{background:none;color:#e5484d;box-shadow:inset 0 0 0 1px #e5484d66}
+.btn.sm{padding:6px 13px;font-size:13px}
+.row-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.x{border:0;background:none;color:var(--text3);width:26px;height:26px;border-radius:7px;cursor:pointer;display:grid;place-items:center}
+.x:hover{background:var(--hover);color:#e5484d}.x svg{width:14px;height:14px}
+
+/* Cities */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.city{padding:16px 18px}
+.city-h{display:flex;justify-content:space-between;align-items:flex-start}
+.cn{font-weight:600}.cs{font-size:12px;color:var(--text3);margin-top:1px}
+.ct{font-size:32px;font-weight:300;letter-spacing:-.03em;margin:14px 0 6px;line-height:1}
+.cd{font-size:12px;color:var(--text3)}
+.cd.ahead{color:var(--accent)}
+
+/* Lists */
+.list{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:18px;padding:14px 20px}
+.row.off .rt,.row.off .ri{opacity:.45}
+.rt{font-size:34px;font-weight:300;letter-spacing:-.03em;min-width:110px;line-height:1}
+.ri{flex:1;min-width:0}.rtitle{font-weight:600}.rsub{font-size:12px;color:var(--text3);margin-top:2px}
+.empty{text-align:center;padding:44px 20px;color:var(--text3);border:1px dashed var(--line);border-radius:14px}
+.switch{position:relative;width:42px;height:24px;flex:0 0 auto}
+.switch input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;z-index:1}
+.switch i{position:absolute;inset:0;background:var(--off);border-radius:99px;transition:background .2s}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.switch input:checked+i{background:var(--accent)}.switch input:checked+i::after{transform:translateX(18px)}
+.switch input:focus-visible+i{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Stopwatch / timer */
+.center{display:flex;flex-direction:column;align-items:center;padding:44px 24px 38px}
+.xl{font-size:92px;font-weight:200;letter-spacing:-.05em;line-height:1;direction:ltr}
+.laps{margin-top:12px;display:flex;flex-direction:column;max-height:260px;overflow-y:auto}
+.lap{display:flex;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--line)}
+.lap:last-child{border:0}.lap span:first-child{color:var(--text2)}.lap b{font-weight:600}
+.ring-w{position:relative;width:240px;height:240px}
+.ring{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:8;stroke-linecap:round}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--accent);stroke-dasharray:603.19;transition:stroke-dashoffset .15s linear}
+.ring-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.ring-c .t{font-size:48px;font-weight:300;letter-spacing:-.04em}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:26px}
+.chip{border:0;border-radius:99px;padding:7px 15px;background:var(--hover);cursor:pointer;font-weight:500;transition:background .12s}
+.chip:hover{background:var(--accent-soft)}.chip.on{background:var(--accent);color:#fff}
+.custom{display:flex;align-items:flex-end;gap:10px;margin-top:20px}
+.fld label{display:block;font-size:12px;color:var(--text3);margin-bottom:5px}
+.fld .input{width:84px;text-align:center}
+.muted{color:var(--text3);font-size:13px}
+
+/* Convert */
+.conv{display:flex;align-items:stretch;gap:20px;padding:26px;flex-wrap:wrap}
+.col{flex:1;min-width:230px;display:flex;flex-direction:column;gap:12px}
+.arrow{display:flex;align-items:center;color:var(--text3)}.arrow svg{width:26px;height:26px}
+.res{font-size:56px;font-weight:200;letter-spacing:-.04em;line-height:1.1}
+.col.out{background:var(--accent-soft);border-radius:12px;padding:16px}
+
+/* Settings */
+.set{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 20px}
+.set+.set{margin-top:10px}
+.seg{display:flex;background:var(--hover);border-radius:9px;padding:3px}
+.seg button{border:0;background:none;padding:5px 13px;border-radius:7px;cursor:pointer;font-weight:500;color:var(--text2)}
+.seg button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.sw{display:flex;gap:9px}
+.dot{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.dot.on{border-color:var(--text)}
+
+/* Modal */
+.bd{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .18s;padding:20px}
+.bd.show{opacity:1;pointer-events:auto}
+.modal{width:min(390px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:0 30px 70px -20px rgba(0,0,0,.55);transform:scale(.95);transition:transform .2s}
+.bd.show .modal{transform:none}
+.mt{font-size:17px;font-weight:700;margin-bottom:18px}
+.acts{display:flex;gap:10px;margin-top:22px}.acts .btn{flex:1}
+.fg2{margin-bottom:15px}.fg2>label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.day{padding:7px 0;width:44px;border-radius:8px;border:1px solid var(--line);background:var(--field);cursor:pointer;font-weight:500}
+.day.on{background:var(--accent);color:#fff;border-color:transparent}
+.ringing{text-align:center}.ringing .xl{font-size:64px;margin:6px 0 4px}
+
+@media (max-width:760px){
+  .side{flex-basis:64px;padding:14px 8px}.nav span,.nav kbd,.brand span{display:none}.nav{justify-content:center;padding:11px}.nav.on::before{left:-8px}
+  .brand{justify-content:center;padding-bottom:16px}.main{padding:22px 18px}.big{font-size:60px}.xl{font-size:62px}.hero{gap:24px;padding:24px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><ellipse cx="12" cy="12" rx="4" ry="9"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 21h4"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.8h5M12 2.8v2"/></symbol>
+  <symbol id="i-hour" viewBox="0 0 24 24"><path d="M6.5 3h11M6.5 21h11M7.6 3v3.4c0 2 1.9 3.4 4.4 5.6 2.5-2.2 4.4-3.6 4.4-5.6V3M7.6 21v-3.4c0-2 1.9-3.4 4.4-5.6 2.5 2.2 4.4 3.6 4.4 5.6V21"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+</defs></svg>
+
+<aside class="side">
+  <div class="brand"><b><svg class="i" style="width:16px;height:16px"><use href="#i-clock"/></svg></b><span>Tempo Clock</span></div>
+  <button class="nav on" data-view="world"><svg class="i"><use href="#i-globe"/></svg><span>World Clock</span><kbd>Ctrl+1</kbd></button>
+  <button class="nav" data-view="alarm"><svg class="i"><use href="#i-bell"/></svg><span>Alarms</span><kbd>Ctrl+2</kbd></button>
+  <button class="nav" data-view="stopwatch"><svg class="i"><use href="#i-stop"/></svg><span>Stopwatch</span><kbd>Ctrl+3</kbd></button>
+  <button class="nav" data-view="timer"><svg class="i"><use href="#i-hour"/></svg><span>Timer</span><kbd>Ctrl+4</kbd></button>
+  <button class="nav" data-view="convert"><svg class="i"><use href="#i-swap"/></svg><span>Converter</span><kbd>Ctrl+5</kbd></button>
+  <div class="grow"></div>
+  <button class="nav" data-view="settings"><svg class="i"><use href="#i-cog"/></svg><span>Settings</span><kbd>Ctrl+6</kbd></button>
+</aside>
+
+<main class="main" id="main"><div class="wrap">
+
+  <section class="view on" id="view-world">
+    <h1>World Clock</h1><p class="sub">The exact time anywhere on Earth.</p>
+    <div class="card hero">
+      <svg class="analog" id="analog" viewBox="0 0 200 200"></svg>
+      <div class="hero-info">
+        <select class="select" id="mainZone" aria-label="Main time zone"></select>
+        <div class="big num" id="mainDigital">--:--:--</div>
+        <div class="date" id="mainDate">&nbsp;</div>
+        <div class="meta num" id="mainMeta">&nbsp;</div>
+      </div>
+    </div>
+    <div class="sec"><h2>My cities</h2><button class="btn ghost sm" id="addCityBtn">Add city</button></div>
+    <div class="grid" id="cityGrid"></div>
+  </section>
+
+  <section class="view" id="view-alarm">
+    <h1>Alarms</h1><p class="sub">Get a chime at the times that matter.</p>
+    <div class="sec" style="margin-top:0"><h2>Your alarms</h2><button class="btn sm" id="addAlarmBtn">New alarm</button></div>
+    <div class="list" id="alarmList"></div>
+  </section>
+
+  <section class="view" id="view-stopwatch">
+    <h1>Stopwatch</h1><p class="sub">Precise to a hundredth of a second.</p>
+    <div class="card center">
+      <div class="xl num" id="swDisplay">00:00.00</div>
+      <div class="row-btns">
+        <button class="btn" id="swToggle">Start</button>
+        <button class="btn sec2" id="swLap">Lap</button>
+        <button class="btn ghost" id="swReset">Reset</button>
+      </div>
+    </div>
+    <div class="sec"><h2>Laps</h2></div>
+    <div class="card laps" id="lapList"><div class="empty" style="border:0">Press Lap while running to record a split.</div></div>
+  </section>
+
+  <section class="view" id="view-timer">
+    <h1>Timer</h1><p class="sub">Count down and get notified when time is up.</p>
+    <div class="card center">
+      <div class="ring-w">
+        <svg class="ring" viewBox="0 0 220 220"><circle class="bg" cx="110" cy="110" r="96"/><circle class="fg" id="ringFg" cx="110" cy="110" r="96"/></svg>
+        <div class="ring-c"><div class="t num" id="timerDisplay">05:00</div><div class="muted" id="timerSub">Ready</div></div>
+      </div>
+      <div class="row-btns" style="margin-top:22px">
+        <button class="btn" id="timerToggle">Start</button>
+        <button class="btn ghost" id="timerReset">Reset</button>
+      </div>
+      <div class="chips" id="presets"></div>
+      <div class="custom">
+        <div class="fld"><label for="customMin">Minutes</label><input class="input num" type="number" id="customMin" min="0" max="999" value="10"></div>
+        <div class="fld"><label for="customSec">Seconds</label><input class="input num" type="number" id="customSec" min="0" max="59" value="0"></div>
+        <button class="btn sec2" id="customSet">Set</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-convert">
+    <h1>Time Converter</h1><p class="sub">Turn a time in one city into another city's time.</p>
+    <div class="card conv">
+      <div class="col">
+        <select class="select" id="convFrom" aria-label="From"></select>
+        <input class="input num" type="time" id="convTime" style="font-size:22px;text-align:center">
+        <div class="muted" id="convFromDate">&nbsp;</div>
+        <button class="btn sec2 sm" id="convNow" style="align-self:flex-start">Use current time</button>
+      </div>
+      <div class="arrow"><svg class="i"><use href="#i-swap"/></svg></div>
+      <div class="col out">
+        <select class="select" id="convTo" aria-label="To"></select>
+        <div class="res num" id="convResult">--:--</div>
+        <div class="muted" id="convToDate">&nbsp;</div>
+        <div class="muted" id="convDiff">&nbsp;</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <h1>Settings</h1><p class="sub">Make the clock yours.</p>
+    <div class="sec" style="margin-top:0"><h2>Display</h2></div>
+    <div class="card set"><div><div class="rtitle">24-hour time</div><div class="rsub">Turn off to show AM / PM.</div></div>
+      <label class="switch"><input type="checkbox" id="set24"><i></i></label></div>
+    <div class="card set"><div><div class="rtitle">Show seconds</div><div class="rsub">Applies to the main clock and city cards.</div></div>
+      <label class="switch"><input type="checkbox" id="setSeconds"><i></i></label></div>
+    <div class="sec"><h2>Appearance</h2></div>
+    <div class="card set"><div><div class="rtitle">Theme</div><div class="rsub">System follows your desktop setting.</div></div>
+      <div class="seg" id="themeSeg"><button data-t="system">System</button><button data-t="light">Light</button><button data-t="dark">Dark</button></div></div>
+    <div class="card set"><div><div class="rtitle">Accent color</div><div class="rsub">Used for highlights and active controls.</div></div><div class="sw" id="swatches"></div></div>
+    <div class="sec"><h2>Data</h2></div>
+    <div class="card set"><div><div class="rtitle">Reset app</div><div class="rsub">Remove all cities, alarms and settings.</div></div>
+      <button class="btn danger sm" id="resetAll">Reset</button></div>
+  </section>
+
+</div></main>
+
+<div class="bd" id="backdrop"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const X = '<svg class="i"><use href="#i-x"/></svg>';
+
+/* ---------- Data ---------- */
+const ZONES = [
+ ['Asia/Baku','Baku','Azerbaijan'],['Asia/Tehran','Tehran','Iran'],['Asia/Tokyo','Tokyo','Japan'],['Asia/Shanghai','Shanghai','China'],
+ ['Asia/Singapore','Singapore','Singapore'],['Asia/Dubai','Dubai','UAE'],['Asia/Kolkata','New Delhi','India'],['Asia/Riyadh','Riyadh','Saudi Arabia'],
+ ['Europe/Istanbul','Istanbul','Türkiye'],['Asia/Kuala_Lumpur','Kuala Lumpur','Malaysia'],['Asia/Seoul','Seoul','South Korea'],['Asia/Bangkok','Bangkok','Thailand'],
+ ['Europe/London','London','United Kingdom'],['Europe/Paris','Paris','France'],['Europe/Berlin','Berlin','Germany'],['Europe/Moscow','Moscow','Russia'],
+ ['Europe/Madrid','Madrid','Spain'],['Europe/Rome','Rome','Italy'],['Europe/Amsterdam','Amsterdam','Netherlands'],
+ ['America/New_York','New York','USA'],['America/Los_Angeles','Los Angeles','USA'],['America/Chicago','Chicago','USA'],['America/Toronto','Toronto','Canada'],
+ ['America/Sao_Paulo','São Paulo','Brazil'],['America/Mexico_City','Mexico City','Mexico'],['Africa/Cairo','Cairo','Egypt'],['Africa/Nairobi','Nairobi','Kenya'],
+ ['Africa/Johannesburg','Johannesburg','South Africa'],['Australia/Sydney','Sydney','Australia'],['Australia/Perth','Perth','Australia'],['Pacific/Auckland','Auckland','New Zealand']
+];
+const LOCAL = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+if (!ZONES.some(z => z[0] === LOCAL)) ZONES.unshift([LOCAL, LOCAL.split('/').pop().replace(/_/g,' '), 'Local time zone']);
+const ZMAP = {}; ZONES.forEach(z => ZMAP[z[0]] = {city:z[1], country:z[2]});
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], DAY_ORDER = [1,2,3,4,5,6,0];
+const ACCENTS = ['#2fb67c','#3b82f6','#f59e0b','#ef4444','#a855f7','#eab308','#06b6d4','#ec4899'];
+const PRESETS = [1,3,5,10,15,25,30,60];
+
+const store = {
+  get(k,d){ try{ const v = localStorage.getItem('tempo.'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem('tempo.'+k, JSON.stringify(v)); }catch(e){} },
+  clear(){ try{ Object.keys(localStorage).filter(k => k.startsWith('tempo.')).forEach(k => localStorage.removeItem(k)); }catch(e){} }
+};
+const state = {
+  use24: store.get('use24', true), showSeconds: store.get('showSeconds', true),
+  accent: store.get('accent', ACCENTS[0]), theme: store.get('theme', 'system'),
+  mainZone: store.get('mainZone', LOCAL),
+  cities: store.get('cities', [...new Set([LOCAL,'Europe/London','America/New_York','Asia/Tokyo'])]),
+  alarms: store.get('alarms', [])
+};
+if (!ZMAP[state.mainZone]) state.mainZone = LOCAL;
+
+/* ---------- Time helpers ---------- */
+const cache = {};
+function fmt(kind, tz, opts){
+  const k = kind + tz;
+  if (!(k in cache)) { try { cache[k] = new Intl.DateTimeFormat('en-US', Object.assign({timeZone: tz}, opts)); } catch(e){ cache[k] = null; } }
+  return cache[k];
+}
+function parts(f, date){ const o = {}; if (f) f.formatToParts(date).forEach(p => o[p.type] = p.value); return o; }
+const HMS = {hourCycle:'h23', hour:'2-digit', minute:'2-digit', second:'2-digit'};
+function zoneParts(tz, date){ const o = parts(fmt('t',tz,HMS), date); return {h: (+o.hour)%24 || 0, m: +o.minute || 0, s: +o.second || 0}; }
+function zoneYMD(tz, date){ const o = parts(fmt('d',tz,{year:'numeric',month:'2-digit',day:'2-digit'}), date); return {y:+o.year, m:+o.month, d:+o.day}; }
+const dayNum = v => Math.floor(Date.UTC(v.y, v.m-1, v.d) / 864e5);
+function dateText(tz, date){ const f = fmt('l',tz,{weekday:'long',month:'long',day:'numeric',year:'numeric'}); return f ? f.format(date) : ''; }
+function tzOffset(tz, date){
+  const o = parts(fmt('t2',tz,Object.assign({year:'numeric',month:'2-digit',day:'2-digit'},HMS)), date);
+  const asUTC = Date.UTC(+o.year, +o.month-1, +o.day, (+o.hour)%24, +o.minute, +o.second);
+  return Math.round((asUTC - Math.floor(date.getTime()/1000)*1000) / 6e4);
+}
+function zonedToUtc(y,mo,d,h,mi,tz){
+  const naive = Date.UTC(y,mo-1,d,h,mi); let off = tzOffset(tz, new Date(naive)); let ts = naive - off*6e4;
+  const off2 = tzOffset(tz, new Date(ts)); if (off2 !== off) ts = naive - off2*6e4; return ts;
+}
+function offLabel(mins){ const a = Math.abs(mins); return (mins<0?'−':'+') + pad(Math.floor(a/60)) + ':' + pad(a%60); }
+function diffLabel(off){
+  if (!off) return 'Same time';
+  const a = Math.abs(off), h = Math.floor(a/60), m = a%60;
+  return (off>0?'+':'−') + h + (m ? ':'+pad(m) : '') + (h===1 && !m ? ' hour' : ' hours');
+}
+function timeHTML(tz, date, sec){
+  const p = zoneParts(tz, date); let h = p.h;
+  if (!state.use24) h = h%12 || 12;
+  let s = pad(h) + ':' + pad(p.m) + (sec ? ':' + pad(p.s) : '');
+  return s + (state.use24 ? '' : '<small>' + (p.h < 12 ? 'AM' : 'PM') + '</small>');
+}
+function stopwatchText(ms){
+  const t = Math.floor(ms), cs = Math.floor(t/10)%100, s = Math.floor(t/1000)%60, m = Math.floor(t/6e4)%60, h = Math.floor(t/36e5);
+  return (h ? h+':' : '') + pad(m) + ':' + pad(s) + '.' + pad(cs);
+}
+function timerText(ms){
+  const t = Math.max(0, Math.ceil(ms/1000)), s = t%60, m = Math.floor(t/60)%60, h = Math.floor(t/3600);
+  return (h ? h+':' : '') + pad(m) + ':' + pad(s);
+}
+
+/* ---------- Sound ---------- */
+let actx = null;
+function ctx(){ try{ if(!actx){ const A = window.AudioContext || window.webkitAudioContext; if(!A) return null; actx = new A(); } if(actx.state==='suspended') actx.resume(); return actx; }catch(e){ return null; } }
+function beep(dur, freq, when){
+  const c = ctx(); if (!c) return;
+  try{ const t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.28, t+.02); g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+.05); }catch(e){}
+}
+const chime = () => { beep(.2,880,0); beep(.2,1108,.22); beep(.3,1318,.44); };
+
+/* ---------- Modal ---------- */
+const backdrop = $('#backdrop'), modal = $('#modal'); let ringTimer = null;
+function openModal(html, mount){ modal.innerHTML = html; backdrop.classList.add('show'); if (mount) mount(modal); const f = modal.querySelector('input,select,button'); if (f) f.focus(); }
+function closeModal(){ backdrop.classList.remove('show'); if (ringTimer){ clearInterval(ringTimer); ringTimer = null; } }
+backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+
+/* ---------- Navigation ---------- */
+const VIEWS = ['world','alarm','stopwatch','timer','convert','settings'];
+function show(v){
+  $$('.nav').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'view-' + v));
+  $('#main').scrollTop = 0; if (v === 'convert') updateConvert();
+}
+$$('.nav').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.ctrlKey && /^[1-6]$/.test(e.key)){ e.preventDefault(); show(VIEWS[+e.key-1]); }
+});
+
+/* ---------- Analog clock ---------- */
+const NS = 'http://www.w3.org/2000/svg'; let hH, hM, hS;
+function el(name, attrs, parent){ const n = document.createElementNS(NS, name); for (const k in attrs) n.setAttribute(k, attrs[k]); parent.appendChild(n); return n; }
+function buildAnalog(){
+  const svg = $('#analog'); svg.innerHTML = '';
+  el('circle',{cx:100,cy:100,r:96,fill:'var(--hover)',stroke:'var(--line)'},svg);
+  for (let i=0;i<60;i++){
+    const maj = i%5===0, a = i*Math.PI/30, r1 = maj ? 79 : 85, r2 = 90;
+    el('line',{x1:100+r1*Math.sin(a),y1:100-r1*Math.cos(a),x2:100+r2*Math.sin(a),y2:100-r2*Math.cos(a),
+      stroke:'currentColor','stroke-width':maj?2.4:1,'stroke-linecap':'round',opacity:maj?.6:.22},svg);
+  }
+  const hand = (len,w,c,tail) => el('line',{x1:100,y1:100+tail,x2:100,y2:100-len,stroke:c,'stroke-width':w,'stroke-linecap':'round'},svg);
+  hH = hand(50,6,'currentColor',0); hM = hand(72,4,'currentColor',0); hS = hand(82,1.6,'var(--accent)',16);
+  el('circle',{cx:100,cy:100,r:5.5,fill:'currentColor'},svg); el('circle',{cx:100,cy:100,r:2.4,fill:'var(--accent)'},svg);
+}
+function updateAnalog(date, tz){
+  if (!hH) return; const p = zoneParts(tz, date), s = p.s + date.getMilliseconds()/1000, m = p.m + s/60, h = (p.h%12) + m/60;
+  hS.setAttribute('transform', `rotate(${s*6} 100 100)`); hM.setAttribute('transform', `rotate(${m*6} 100 100)`); hH.setAttribute('transform', `rotate(${h*30} 100 100)`);
+}
+
+/* ---------- Zone selects & cities ---------- */
+const zoneOptions = sel => ZONES.map(z => `<option value="${esc(z[0])}"${z[0]===sel?' selected':''}>${esc(z[1])} — ${esc(z[2])}</option>`).join('');
+const mainSel = $('#mainZone'), convFrom = $('#convFrom'), convTo = $('#convTo');
+mainSel.innerHTML = zoneOptions(state.mainZone); convFrom.innerHTML = zoneOptions(state.mainZone);
+convTo.innerHTML = zoneOptions(ZMAP['Europe/London'] ? 'Europe/London' : ZONES[1][0]);
+mainSel.addEventListener('change', () => { state.mainZone = mainSel.value; store.set('mainZone', state.mainZone); tick(new Date(), true); });
+
+const cityGrid = $('#cityGrid');
+function renderCities(){
+  if (!state.cities.length){ cityGrid.innerHTML = '<div class="empty" style="grid-column:1/-1">No cities yet. Use “Add city” to follow another time zone.</div>'; return; }
+  cityGrid.innerHTML = state.cities.map(tz => { const i = ZMAP[tz] || {city:tz,country:''};
+    return `<div class="card city" data-tz="${esc(tz)}"><div class="city-h"><div><div class="cn">${esc(i.city)}</div><div class="cs">${esc(i.country)}</div></div>
+    <button class="x" data-remove="${esc(tz)}" title="Remove ${esc(i.city)}" aria-label="Remove ${esc(i.city)}">${X}</button></div>
+    <div class="ct num" data-r="t">--:--</div><div class="cd" data-r="d">&nbsp;</div></div>`; }).join('');
+}
+cityGrid.addEventListener('click', e => {
+  const b = e.target.closest('[data-remove]'); if (!b) return;
+  state.cities = state.cities.filter(c => c !== b.dataset.remove); store.set('cities', state.cities); renderCities(); tick(new Date(), true);
+});
+function updateCities(date){
+  const mainDay = dayNum(zoneYMD(state.mainZone, date)), mainOff = tzOffset(state.mainZone, date);
+  $$('.city').forEach(card => {
+    const tz = card.dataset.tz; card.querySelector('[data-r=t]').innerHTML = timeHTML(tz, date, state.showSeconds);
+    const d = dayNum(zoneYMD(tz, date)) - mainDay, off = tzOffset(tz, date) - mainOff;
+    const day = d===0 ? 'Today' : d===1 ? 'Tomorrow' : d===-1 ? 'Yesterday' : d>0 ? `${d} days ahead` : `${-d} days behind`;
+    const dd = card.querySelector('[data-r=d]'); dd.textContent = day + ' · ' + diffLabel(off); dd.classList.toggle('ahead', off > 0);
+  });
+}
+$('#addCityBtn').addEventListener('click', () => {
+  openModal(`<div class="mt">Add city</div><div class="fg2"><label for="newCity">City</label><select class="select" id="newCity">${zoneOptions('')}</select></div>
+    <div class="acts"><button class="btn sec2" id="c1">Cancel</button><button class="btn" id="c2">Add city</button></div>`, m => {
+    m.querySelector('#c1').onclick = closeModal;
+    m.querySelector('#c2').onclick = () => { const tz = m.querySelector('#newCity').value;
+      if (!state.cities.includes(tz)){ state.cities.push(tz); store.set('cities', state.cities); renderCities(); tick(new Date(), true); } closeModal(); };
+  });
+});
+
+/* ---------- Alarms ---------- */
+const alarmList = $('#alarmList');
+function daysText(d){
+  if (!d || !d.length || d.length === 7) return 'Every day';
+  const s = DAY_ORDER.filter(x => d.includes(x)).join();
+  if (s === '1,2,3,4,5') return 'Weekdays'; if (s === '6,0') return 'Weekends';
+  return DAY_ORDER.filter(x => d.includes(x)).map(x => DAYS[x]).join(', ');
+}
+function renderAlarms(){
+  if (!state.alarms.length){ alarmList.innerHTML = '<div class="empty">No alarms yet. Choose “New alarm” to set one.</div>'; return; }
+  alarmList.innerHTML = state.alarms.slice().sort((a,b) => a.time.localeCompare(b.time)).map(a =>
+    `<div class="card row${a.on?'':' off'}"><div class="rt num">${esc(a.time)}</div>
+    <div class="ri"><div class="rtitle">${esc(a.label || 'Alarm')}</div><div class="rsub">${daysText(a.days)}</div></div>
+    <button class="x" data-del="${a.id}" title="Delete alarm" aria-label="Delete alarm">${X}</button>
+    <label class="switch"><input type="checkbox" data-toggle="${a.id}" aria-label="Enable alarm"${a.on?' checked':''}><i></i></label></div>`).join('');
+}
+alarmList.addEventListener('click', e => { const d = e.target.closest('[data-del]'); if (!d) return;
+  state.alarms = state.alarms.filter(a => a.id !== d.dataset.del); store.set('alarms', state.alarms); renderAlarms(); });
+alarmList.addEventListener('change', e => { const t = e.target.closest('[data-toggle]'); if (!t) return;
+  const a = state.alarms.find(x => x.id === t.dataset.toggle); if (a){ a.on = t.checked; a.lastFired = null; store.set('alarms', state.alarms); renderAlarms(); } });
+$('#addAlarmBtn').addEventListener('click', () => {
+  const n = new Date();
+  openModal(`<div class="mt">New alarm</div>
+    <div class="fg2"><label for="aT">Time</label><input class="input num" type="time" id="aT" value="${pad(n.getHours())}:${pad(n.getMinutes())}"></div>
+    <div class="fg2"><label for="aL">Label</label><input class="input" type="text" id="aL" placeholder="e.g. Wake up" maxlength="40"></div>
+    <div class="fg2"><label>Repeat (none selected = every day)</label><div class="days" id="aD">${DAY_ORDER.map(d => `<button type="button" class="day" data-d="${d}">${DAYS[d]}</button>`).join('')}</div></div>
+    <div class="acts"><button class="btn sec2" id="c1">Cancel</button><button class="btn" id="c2">Save alarm</button></div>`, m => {
+    const picked = [];
+    m.querySelector('#aD').addEventListener('click', e => { const b = e.target.closest('.day'); if (!b) return; const d = +b.dataset.d, i = picked.indexOf(d);
+      if (i < 0){ picked.push(d); b.classList.add('on'); } else { picked.splice(i,1); b.classList.remove('on'); } });
+    m.querySelector('#c1').onclick = closeModal;
+    m.querySelector('#c2').onclick = () => { const time = m.querySelector('#aT').value; if (!time) return;
+      state.alarms.push({id:'a'+Date.now()+Math.random().toString(36).slice(2,6), time, label:m.querySelector('#aL').value.trim(), days:picked.slice(), on:true, lastFired:null});
+      store.set('alarms', state.alarms); renderAlarms(); closeModal(); };
+  });
+});
+function ringAlarm(a){
+  chime(); if (ringTimer) clearInterval(ringTimer); ringTimer = setInterval(chime, 1600);
+  openModal(`<div class="ringing"><div class="mt" style="margin-bottom:0">Alarm</div><div class="xl num">${esc(a.time)}</div>
+    <div class="muted" style="margin-bottom:22px">${esc(a.label || 'Time is up')}</div><button class="btn" id="stop" style="width:100%">Stop</button></div>`,
+    m => m.querySelector('#stop').onclick = closeModal);
+}
+function checkAlarms(date){
+  const key = pad(date.getHours()) + ':' + pad(date.getMinutes()), stamp = date.toDateString() + ' ' + key;
+  state.alarms.forEach(a => {
+    if (!a.on || a.time !== key || a.lastFired === stamp) return;
+    if (a.days && a.days.length && !a.days.includes(date.getDay())) return;
+    a.lastFired = stamp; store.set('alarms', state.alarms); ringAlarm(a);
+  });
+}
+
+/* ---------- Stopwatch ---------- */
+const sw = {running:false, elapsed:0, startAt:0, laps:[]};
+const swNow = () => sw.running ? sw.elapsed + performance.now() - sw.startAt : sw.elapsed;
+$('#swToggle').addEventListener('click', e => {
+  if (sw.running){ sw.elapsed += performance.now() - sw.startAt; sw.running = false; e.target.textContent = 'Resume'; }
+  else { sw.startAt = performance.now(); sw.running = true; e.target.textContent = 'Pause'; }
+});
+$('#swLap').addEventListener('click', () => { if (swNow() > 0){ sw.laps.push(swNow()); renderLaps(); } });
+$('#swReset').addEventListener('click', () => { sw.running = false; sw.elapsed = 0; sw.laps = []; $('#swToggle').textContent = 'Start'; $('#swDisplay').textContent = '00:00.00'; renderLaps(); });
+function renderLaps(){
+  const box = $('#lapList');
+  if (!sw.laps.length){ box.innerHTML = '<div class="empty" style="border:0">Press Lap while running to record a split.</div>'; return; }
+  let h = ''; for (let i = sw.laps.length-1; i >= 0; i--)
+    h += `<div class="lap"><span>Lap ${i+1}</span><b class="num">${stopwatchText(sw.laps[i] - (i ? sw.laps[i-1] : 0))}</b><span class="num muted">${stopwatchText(sw.laps[i])}</span></div>`;
+  box.innerHTML = h;
+}
+
+/* ---------- Timer ---------- */
+const timer = {total:3e5, remaining:3e5, running:false, endAt:0}, RING = 2*Math.PI*96;
+$('#presets').innerHTML = PRESETS.map(p => `<button class="chip" data-min="${p}">${p} min</button>`).join('');
+function setTimer(ms){ timer.total = timer.remaining = ms; timer.running = false; $('#timerToggle').textContent = 'Start'; $('#timerSub').textContent = 'Ready'; paintTimer(); }
+function paintTimer(){
+  $('#timerDisplay').textContent = timerText(timer.remaining);
+  $('#ringFg').style.strokeDashoffset = RING * (1 - (timer.total ? timer.remaining / timer.total : 0));
+}
+$('#presets').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return;
+  setTimer(+c.dataset.min * 6e4); $$('#presets .chip').forEach(x => x.classList.toggle('on', x === c)); });
+$('#customSet').addEventListener('click', () => {
+  const m = Math.max(0, parseInt($('#customMin').value,10) || 0), s = Math.max(0, Math.min(59, parseInt($('#customSec').value,10) || 0)), t = (m*60+s)*1000;
+  if (t > 0){ setTimer(t); $$('#presets .chip').forEach(x => x.classList.remove('on')); }
+});
+$('#timerToggle').addEventListener('click', e => {
+  if (timer.running){ timer.remaining = Math.max(0, timer.endAt - performance.now()); timer.running = false; e.target.textContent = 'Resume'; $('#timerSub').textContent = 'Paused'; }
+  else { if (timer.remaining <= 0) timer.remaining = timer.total; timer.endAt = performance.now() + timer.remaining; timer.running = true; e.target.textContent = 'Pause'; $('#timerSub').textContent = 'Counting down'; ctx(); }
+  paintTimer();
+});
+$('#timerReset').addEventListener('click', () => { timer.running = false; timer.remaining = timer.total; $('#timerToggle').textContent = 'Start'; $('#timerSub').textContent = 'Ready'; paintTimer(); });
+function stepTimer(){
+  timer.remaining = Math.max(0, timer.endAt - performance.now());
+  if (timer.remaining > 0) return paintTimer();
+  timer.running = false; $('#timerToggle').textContent = 'Start'; $('#timerSub').textContent = 'Time is up'; paintTimer();
+  chime(); setTimeout(chime, 900);
+  openModal(`<div class="ringing"><div class="mt" style="margin-bottom:4px">Timer finished</div><div class="muted" style="margin-bottom:22px">${timerText(timer.total)} elapsed</div><button class="btn" id="ok" style="width:100%">Done</button></div>`,
+    m => m.querySelector('#ok').onclick = closeModal);
+}
+
+/* ---------- Converter ---------- */
+const convTime = $('#convTime');
+function updateConvert(){
+  const from = convFrom.value, to = convTo.value, [h, mi] = (convTime.value || '00:00').split(':').map(n => parseInt(n,10) || 0), t = zoneYMD(from, new Date());
+  const d = new Date(zonedToUtc(t.y, t.m, t.d, h, mi, from));
+  $('#convResult').innerHTML = timeHTML(to, d, false); $('#convFromDate').textContent = dateText(from, d); $('#convToDate').textContent = dateText(to, d);
+  const diff = tzOffset(to, d) - tzOffset(from, d);
+  $('#convDiff').textContent = 'Time difference: ' + (diff ? diffLabel(diff) : 'none');
+}
+[convFrom, convTo].forEach(s => s.addEventListener('change', updateConvert)); convTime.addEventListener('input', updateConvert);
+$('#convNow').addEventListener('click', () => { const p = zoneParts(convFrom.value, new Date()); convTime.value = pad(p.h) + ':' + pad(p.m); updateConvert(); });
+
+/* ---------- Settings ---------- */
+const media = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(){
+  document.documentElement.classList.toggle('dark', state.theme === 'dark' || (state.theme === 'system' && media.matches));
+  $$('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === state.theme));
+}
+function applyAccent(){
+  document.documentElement.style.setProperty('--accent', state.accent); document.documentElement.style.setProperty('--accent-soft', state.accent + '22');
+  $('#swatches').innerHTML = ACCENTS.map(c => `<button class="dot${c===state.accent?' on':''}" data-c="${c}" style="background:${c}" aria-label="Accent ${c}"></button>`).join('');
+}
+media.addEventListener ? media.addEventListener('change', applyTheme) : media.addListener(applyTheme);
+$('#themeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.theme = b.dataset.t; store.set('theme', state.theme); applyTheme(); });
+$('#swatches').addEventListener('click', e => { const b = e.target.closest('.dot'); if (!b) return; state.accent = b.dataset.c; store.set('accent', state.accent); applyAccent(); });
+$('#set24').checked = state.use24; $('#setSeconds').checked = state.showSeconds;
+$('#set24').addEventListener('change', e => { state.use24 = e.target.checked; store.set('use24', state.use24); tick(new Date(), true); updateConvert(); });
+$('#setSeconds').addEventListener('change', e => { state.showSeconds = e.target.checked; store.set('showSeconds', state.showSeconds); tick(new Date(), true); });
+$('#resetAll').addEventListener('click', () => {
+  openModal(`<div class="mt">Reset Tempo Clock?</div><div class="muted" style="line-height:1.7">All cities, alarms and settings will be removed. This can’t be undone.</div>
+    <div class="acts"><button class="btn sec2" id="c1">Cancel</button><button class="btn" id="c2" style="background:#e5484d">Reset app</button></div>`, m => {
+    m.querySelector('#c1').onclick = closeModal; m.querySelector('#c2').onclick = () => { store.clear(); location.reload(); }; });
+});
+
+/* ---------- Main loop ---------- */
+let lastSec = -1;
+function tick(date, force){
+  if (!force && date.getSeconds() === lastSec) return; lastSec = date.getSeconds();
+  const tz = state.mainZone;
+  $('#mainDigital').innerHTML = timeHTML(tz, date, state.showSeconds);
+  $('#mainDate').textContent = dateText(tz, date);
+  $('#mainMeta').textContent = 'UTC' + offLabel(tzOffset(tz, date)) + ' · ' + (tz === LOCAL ? 'Local time zone' : (ZMAP[tz] || {}).country);
+  updateCities(date); checkAlarms(date);
+  if ($('#view-convert').classList.contains('on')) updateConvert();
+}
+function loop(){
+  const now = new Date(); updateAnalog(now, state.mainZone); if (now.getSeconds() !== lastSec) tick(now, false);
+  if (sw.running && $('#view-stopwatch').classList.contains('on')) $('#swDisplay').textContent = stopwatchText(swNow());
+  if (timer.running) stepTimer();
+  requestAnimationFrame(loop);
+}
+
+applyTheme(); applyAccent(); buildAnalog(); renderCities(); renderAlarms(); renderLaps(); paintTimer();
+(() => { const p = zoneParts(state.mainZone, new Date()); convTime.value = pad(p.h) + ':' + pad(p.m); updateConvert(); })();
+tick(new Date(), true); requestAnimationFrame(loop);
+setInterval(() => { if (!document.hidden) return; const n = new Date(); updateAnalog(n, state.mainZone); tick(n, false); if (timer.running) stepTimer(); }, 1000);
+})();
+</script>
+</body>
+</html>
